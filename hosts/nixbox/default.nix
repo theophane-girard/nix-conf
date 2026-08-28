@@ -5,6 +5,7 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/desktop.nix # retirer cette ligne pour un serveur / sans GUI
+    ../../modules/dev.nix
   ];
 
   networking.hostName = hostname;

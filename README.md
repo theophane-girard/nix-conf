@@ -11,7 +11,8 @@ hosts/nixbox/
 modules/
   base.nix                nix/flakes, locale FR, reseau, outils CLI
   users.nix               compte utilisateur, groupes, sudo
-  desktop.nix             Hyprland, pipewire, greetd, polices, apps
+  desktop.nix             Hyprland, pipewire, greetd, polices, impression/scan, apps
+  dev.nix                 docker + docker compose
 home/theophane.nix        dotfiles utilisateur (git, zsh, starship, direnv...)
 ```
 
@@ -121,3 +122,61 @@ Chercher un nom de package : `nix search nixpkgs <terme>` ou search.nixos.org.
 cp -r hosts/nixbox hosts/<nom>
 ```
 puis declarer l'entree dans `flake.nix` (`nixosConfigurations.<nom> = mkHost {...}`).
+
+
+## Node / versions par projet
+
+Pas de nvm : sous NixOS on epingle l'environnement **par projet** avec direnv
+(deja active). Dans un depot :
+
+```bash
+cat > .envrc <<'EOF'
+use flake
+EOF
+
+cat > flake.nix <<'EOF'
+{
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+  outputs = { nixpkgs, ... }:
+    let pkgs = nixpkgs.legacyPackages.x86_64-linux;
+    in {
+      devShells.x86_64-linux.default = pkgs.mkShell {
+        packages = [ pkgs.nodejs_22 pkgs.pnpm ];
+      };
+    };
+}
+EOF
+
+direnv allow
+```
+
+En entrant dans le dossier, la bonne version de Node est dans le PATH ; en
+sortant, elle disparait. Le `nodejs_24` de `home/theophane.nix` ne sert que de
+repli pour les scripts hors projet.
+
+Pour une version de Node absente de nixpkgs 26.05, pointer un autre commit de
+nixpkgs dans les inputs du flake du projet (voir lazamar.co.uk/nix-versions).
+
+## Neovim / LazyVim
+
+Le premier `nixos-rebuild switch` clone le starter LazyVim dans `~/.config/nvim`
+s'il n'existe pas. Ensuite ce dossier est a toi : LazyVim gere ses propres
+plugins (`:Lazy`), home-manager n'y touche plus. Pour repartir de zero :
+
+```bash
+rm -rf ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim
+nrs   # re-clone le starter
+```
+
+## Scanner
+
+`hardware.sane` + `sane-airscan` couvrent les scanners reseau en eSCL/WSD, et
+avahi assure la decouverte mDNS. Verifier :
+
+```bash
+scanimage -L        # liste les scanners vus
+simple-scan         # GUI
+```
+
+Si le scanner reseau n'apparait pas, decommenter le bloc `airscan-manual` dans
+`modules/desktop.nix` pour coder son URL eSCL en dur.

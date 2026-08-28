@@ -14,7 +14,9 @@
       "video"
       "audio"
       "input"
-      "docker"
+      "docker" # docker sans sudo
+      "scanner" # acces aux scanners SANE
+      "lp" # imprimantes + scanners multifonctions
     ];
 
     # A CHANGER au premier boot : passwd
