@@ -66,18 +66,23 @@ nix-shell -p git   # si git absent de l'ISO
 git clone <url-du-depot> /mnt/etc/nixos
 cd /mnt/etc/nixos
 
-# genere le vrai hardware-configuration.nix (UUID + modules noyau detectes)
-nixos-generate-config --root /mnt --no-filesystems
-cp /mnt/etc/nixos/hardware-configuration.nix hosts/nixbox/hardware-configuration.nix
+# genere le vrai hardware-configuration.nix, directement au bon endroit
+nixos-generate-config --root /mnt --show-hardware-config \
+  > /mnt/etc/nixos/hosts/nixbox/hardware-configuration.nix
 ```
 
-`--no-filesystems` garde les `fileSystems` par label deja ecrits ici. Sans ce
-flag, le fichier genere contient les UUID reels : c'est tout aussi bien, il
-remplace alors integralement le placeholder.
+`--show-hardware-config` ecrit sur la sortie standard : rien ne traine dans le
+depot, contrairement a `nixos-generate-config --root /mnt` qui deposerait aussi
+un `configuration.nix` inutile a la racine.
 
-Reajuster ensuite dans `hosts/nixbox/default.nix` :
-- `kvm-amd` / `kvm-intel` selon le CPU
-- le bloc `boot.initrd.luks.devices` si la racine est chiffree
+Le fichier genere remplace integralement le placeholder : UUID reels, modules
+noyau detectes, et l'entree `boot.initrd.luks.devices` si la racine est
+chiffree (elle est detectee automatiquement -- laisser dans ce cas le bloc LUKS
+de `hosts/nixbox/default.nix` COMMENTE, sinon l'option est definie deux fois).
+
+Relire le fichier genere : verifier `kvm-amd` / `kvm-intel` selon le CPU, et la
+presence d'un bloc `fileSystems` pour `/` et `/boot` (s'il manque, c'est que
+tout n'etait pas monte au moment de la generation).
 
 ```bash
 git add -A   # obligatoire, sinon le flake ignore le nouveau fichier
