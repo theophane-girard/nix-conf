@@ -96,6 +96,30 @@ reboot
 Login : utilisateur `theophane`, mot de passe `changeme` (defini dans
 `modules/users.nix`) -> le changer immediatement avec `passwd`.
 
+## Premier boot : recaler le depot
+
+A l'install le depot atterrit dans `/etc/nixos`, qui appartient a root, alors que
+les alias `nrs`/`nrt`/`nfu` pointent vers `~/Documents/nix-conf`. Une seule fois :
+
+```bash
+sudo cp -r /etc/nixos ~/Documents/nix-conf
+sudo chown -R $USER:users ~/Documents/nix-conf
+cd ~/Documents/nix-conf
+
+# pousser le hardware-configuration.nix genere pendant l'install
+git add -A && git commit -m "hardware: nixbox" && git push
+```
+
+Ensuite `/etc/nixos` ne sert plus : avec les flakes c'est `--flake <chemin>` qui
+decide. Mettre a jour la machine depuis le depot :
+
+```bash
+cd ~/Documents/nix-conf && git pull && nrs
+```
+
+Toujours `git pull` AVANT `nrs` : sans ca tu reconstruis l'ancienne version sans
+aucun message d'erreur.
+
 ## Au quotidien
 
 ```bash
