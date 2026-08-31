@@ -158,77 +158,86 @@ puis declarer l'entree dans `flake.nix` (`nixosConfigurations.<nom> = mkHost {..
 
 La barre, le launcher, le centre de notifications, l'ecran de verrouillage et le
 theming Material You viennent de
-[xBLACKICEx/end-4-dots-hyprland-nixos](https://github.com/xBLACKICEx/end-4-dots-hyprland-nixos),
-portage NixOS de [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland)
+[soymou/illogical-flake](https://github.com/soymou/illogical-flake), portage
+NixOS de [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland)
 (variante QuickShell, pas AGS).
 
 ### Comment c'est branche
 
 | Ou | Quoi |
 | --- | --- |
-| `flake.nix` | input `illogical-impulse`, avec `inputs.nixpkgs.follows = "nixpkgs"` |
+| `flake.nix` | input `illogical-flake`, avec `inputs.nixpkgs.follows = "nixpkgs"` |
 | `flake.nix` | `inputs` passe a home-manager via `extraSpecialArgs` |
-| `home/illogical-impulse.nix` | import du module + options (`enable`, `monitor`, `dotfiles.kitty`) |
-| `home/theophane.nix` | importe le fichier ci-dessus |
-| `modules/desktop.nix` | garde la partie SYSTEME (session Hyprland, portals, audio) ; `ydotoold` + `geoclue2` ajoutes pour le shell |
+| `home/illogical-impulse.nix` | import du module + options (`enable`, `dotfiles.*`), theme de curseur |
+| `home/theophane.nix` | importe le fichier ci-dessus ; `programs.starship` retire |
+| `modules/desktop.nix` | garde la partie SYSTEME (session Hyprland, portals, audio) ; `ydotoold` + `geoclue2` ajoutes ; outillage Hyprland retire (fourni cote utilisateur) |
 | `modules/users.nix` | groupe `ydotool` |
 
-Le module amont est un module **home-manager** : il ecrit dans `~/.config`
-(`hypr/`, `quickshell/`, `matugen/`, `kitty/`) et installe ses paquets dans le
-profil utilisateur. C'est pour ca que la barre, le launcher et les notifications
-ont ete retires de `modules/desktop.nix` : les avoir des deux cotes ferait
-tourner deux barres.
+Le module est un module **home-manager**, et il ne declare pas
+`wayland.windowManager.hyprland` : la session Hyprland reste celle de
+`programs.hyprland` dans `modules/desktop.nix`. Une seule source de verite.
 
-### Regler l'ecran
+### Le piege principal : la recopie destructive
 
-Dans `home/illogical-impulse.nix`, option `hyprland.monitor` :
+A **chaque** `nixos-rebuild switch`, un script d'activation supprime puis
+recopie ces entrees de `~/.config` depuis le depot amont :
 
-```nix
-monitor = [ ",preferred,auto,1" ];        # tout ecran, sans mise a l'echelle
-# monitor = [ "eDP-1,preferred,auto,1.5" ];  # portable HiDPI
+```
+Kvantum  chrome-flags.conf  code-flags.conf  darklyrc  dolphinrc  fish
+fontconfig  foot  fuzzel  hypr  kde-material-you-colors  kdeglobals  kitty
+matugen  mpv  quickshell  starship.toml  thorium-flags.conf  wlogout
+xdg-desktop-portal  zshrc.d
 ```
 
-Les noms d'ecrans se lisent une fois sous Hyprland : `hyprctl monitors`.
+Consequences :
 
-### Points d'attention
+- **Ne jamais editer ces dossiers a la main**, le switch suivant efface tout.
+  Les personnalisations vont dans `~/.config/hypr/custom/*.lua` (preserve, sauf
+  `env.lua` et `general.lua` que le module regenere) et dans
+  `~/.config/illogical-impulse/config.json` (cree une seule fois, jamais
+  ecrase ensuite).
+- `~/.config/nvim` n'est **pas** dans la liste : LazyVim n'est pas concerne.
+- `programs.starship` a ete retire de `home/theophane.nix` : c'est le prompt de
+  end-4 qui gagne, et le declarer des deux cotes revenait a voir sa propre
+  config disparaitre sans message d'erreur.
 
-- **Deux sources de verite pour starship.** `dotfiles.starship.enable` est
-  laisse a `false` : `programs.starship` (dans `home/theophane.nix`) ecrit deja
-  `~/.config/starship.toml`. Activer les deux = collision home-manager au
-  switch. Pour prendre le prompt end-4 a la place, mettre
-  `dotfiles.starship.enable = true` **et** `programs.starship.enable = false`.
-- **`systemd.enable` force a `true`.** Le module amont le met a `false`, ce qui
-  empeche `hyprland-session.target` de demarrer, donc hypridle / gammastep /
-  applet reseau ne se lancent jamais. Si Hyprland demarre mal, repasser cette
-  ligne a `false`.
-- **Le depot amont est peu maintenu** (dernier commit aout 2025) et epingle
-  nixpkgs `unstable`, alors qu'ici tout suit `nixos-26.05`. Des noms de paquets
-  ont pu changer entre les deux : si l'evaluation echoue sur un paquet
-  (`python313Packages.kde-material-you-colors`, un `nerd-fonts.*`, le paquet NUR
-  `gabarito`...), voir la section suivante.
-- **Fond d'ecran et couleurs.** Les couleurs Material You sont generees au
-  premier lancement par matugen a partir du fond d'ecran. Tant que ce n'est pas
-  fait, `~/.config/hypr/hyprland/colors.conf` peut manquer et Hyprland affiche
-  une banniere d'erreur. Choisir un fond d'ecran depuis le shell la fait
-  disparaitre.
+### Choix a connaitre
+
+- **`dotfiles.fish.enable` doit rester a `true`.** Le `kitty.conf` de end-4
+  contient `shell fish` : sans fish installe, le terminal ne s'ouvre plus. Ca
+  ne change pas le shell de connexion, qui reste zsh (`modules/users.nix`).
+- **Le curseur est ajoute par nous.** `hypr/hyprland/execs.lua` lance
+  `hyprctl setcursor Bibata-Modern-Classic 24` mais aucun des deux depots ne
+  fournit le paquet : d'ou le bloc `home.pointerCursor` avec
+  `pkgs.bibata-cursors`.
+- **Les dotfiles sont epingles par le mainteneur amont**, pas par nous. C'est
+  volontaire : `quickshell` et les dotfiles doivent avancer ensemble.
+  `nix flake update illogical-flake` fait avancer les deux d'un coup.
+
+### Reglage de l'ecran
+
+Il ne passe plus par une option Nix : la config Hyprland est en Lua.
+Editer `~/.config/hypr/custom/variables.lua` (preserve entre les switch), ou
+`hyprctl keyword monitor ...` pour tester a chaud. Noms des ecrans :
+`hyprctl monitors`.
 
 ### Quand ca casse a l'evaluation
 
 ```bash
 # 1. lire le nom du paquet fautif dans le message d'erreur
-# 2. verifier s'il existe encore en 26.05
 nix search nixpkgs <nom>
 
-# 3. mettre a jour l'input (le probleme est peut-etre deja corrige en amont)
-nix flake update illogical-impulse --flake ~/Documents/nix-conf
+# 2. le probleme est peut-etre deja corrige en amont
+nix flake update illogical-flake --flake ~/Documents/nix-conf
 
-# 4. en dernier recours : desactiver le shell le temps de redemarrer
-#    -> commenter ./illogical-impulse.nix dans home/theophane.nix
-#    -> remettre waybar / wofi / mako dans modules/desktop.nix
+# 3. repli : commenter ./illogical-impulse.nix dans home/theophane.nix,
+#    remettre programs.starship.enable = true, et decommenter la liste de
+#    paquets Hyprland dans modules/desktop.nix
 ```
 
 Un `nixos-rebuild switch` qui echoue ne casse rien : le systeme actuel continue
-de tourner, seul le nouveau profil n'est pas cree.
+de tourner, seul le nouveau profil n'est pas cree. Et si le nouveau systeme
+boote mal, le menu de demarrage garde les 10 generations precedentes.
 
 ## Node / versions par projet
 

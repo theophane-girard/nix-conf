@@ -9,14 +9,18 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Shell Hyprland "illogical impulse" (end-4), portage NixOS / home-manager.
+    # Shell Hyprland "illogical impulse" (end-4 / QuickShell), portage NixOS.
     # N'expose qu'un module home-manager : homeManagerModules.default.
-    illogical-impulse = {
-      url = "github:xBLACKICEx/end-4-dots-hyprland-nixos";
+    illogical-flake = {
+      url = "github:soymou/illogical-flake";
       # Force quickshell + NUR a se construire contre NOTRE nixpkgs : sans ca
       # deux nixpkgs cohabitent et les libs Qt de quickshell ne correspondent
       # plus a celles des paquets kdePackages installes a cote.
       inputs.nixpkgs.follows = "nixpkgs";
+      # Son input "dotfiles" pointe sur end-4/dots-hyprland en amont direct, a
+      # une revision testee par le mainteneur. On garde SON epinglage : c'est
+      # la combinaison quickshell + dotfiles qu'il a validee.
+      #   nix flake update illogical-flake   -> avance les deux ensemble
     };
   };
 

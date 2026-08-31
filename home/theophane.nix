@@ -102,7 +102,9 @@
     };
   };
 
-  programs.starship.enable = true;
+  # Pas de programs.starship ici : le prompt vient des dotfiles end-4
+  # (home/illogical-impulse.nix), qui reecrivent ~/.config/starship.toml a
+  # chaque switch. Declarer les deux = ta config ecrasee sans message.
   programs.fzf.enable = true;
   programs.zoxide.enable = true;
   programs.bat.enable = true;

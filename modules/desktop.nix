@@ -63,9 +63,9 @@
   # "ydotool" (fait dans modules/users.nix).
   programs.ydotool.enable = true;
 
-  # Geolocalisation : le module end-4 active services.gammastep avec le
-  # fournisseur geoclue2 (temperature d'ecran suivant l'heure locale).
-  # Sans ce service cote systeme, gammastep demarre puis s'arrete en boucle.
+  # Geolocalisation : QuickShell l'utilise via QtPositioning (meteo, et
+  # hyprsunset qui suit le lever/coucher du soleil). Les dotfiles end-4
+  # lancent un agent geoclue au demarrage de la session.
   services.geoclue2.enable = true;
 
   # mDNS : indispensable pour que l'imprimante et le scanner reseau
@@ -112,20 +112,24 @@
   environment.systemPackages = with pkgs; [
     # Hyprland toolkit
     #
-    # Volontairement absents : waybar, wofi, mako, hyprpaper, hyprlock,
-    # hypridle, kitty. Le shell end-4 fournit ses propres equivalents
-    # (QuickShell pour la barre et les notifications, fuzzel pour le launcher,
-    # swww pour le fond d'ecran) dans le profil UTILISATEUR. Les installer ici
-    # en plus ferait tourner deux barres et deux daemons de notification.
+    # Presque vide, et c'est voulu : le shell end-4 installe tout son outillage
+    # dans le profil UTILISATEUR (home/illogical-impulse.nix). Le dupliquer ici
+    # ferait tourner deux barres et deux daemons de notification.
+    #
     # Pour revenir a un Hyprland nu : commenter l'import de
-    # home/illogical-impulse.nix et remettre ces paquets ici.
-    grim
-    slurp
-    swappy
-    wl-clipboard
-    cliphist
-    brightnessctl
-    playerctl
+    # home/illogical-impulse.nix dans home/theophane.nix, remettre
+    # programs.starship.enable dans ce meme fichier, et decommenter la liste
+    # ci-dessous.
+    #
+    #   waybar         # barre           -> QuickShell
+    #   wofi           # launcher        -> fuzzel
+    #   mako           # notifications   -> QuickShell
+    #   hyprpaper      # fond d'ecran    -> swww
+    #   hyprlock hypridle kitty
+    #   grim slurp swappy      # captures -> hyprshot / slurp / swappy
+    #   wl-clipboard cliphist
+    #   brightnessctl playerctl pavucontrol
+
     nautilus
 
     # Navigateurs

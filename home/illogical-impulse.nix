@@ -1,56 +1,55 @@
 # Shell Hyprland "illogical impulse" (end-4 / QuickShell), portage NixOS :
-#   https://github.com/xBLACKICEx/end-4-dots-hyprland-nixos
+#   https://github.com/soymou/illogical-flake
+# qui suit en amont direct https://github.com/end-4/dots-hyprland
 #
-# C'est un module HOME-MANAGER, pas un module NixOS : il pose les dotfiles dans
-# ~/.config (hypr/, quickshell/, matugen/, kitty/...) et installe dans le profil
-# utilisateur la centaine de paquets dont la barre QuickShell a besoin.
+# C'est un module HOME-MANAGER, pas un module NixOS. Il ne touche PAS a la
+# session Hyprland elle-meme : c'est modules/desktop.nix (programs.hyprland)
+# qui reste patron. Ce module se contente de deux choses :
+#   - installer dans le profil utilisateur QuickShell (wrappe avec les bons
+#     chemins QML/Qt) et sa centaine de dependances ;
+#   - recopier les dotfiles end-4 dans ~/.config a chaque switch.
 #
-# Il declare lui-meme wayland.windowManager.hyprland ; la partie systeme
-# (session graphique, portals, polkit) reste dans modules/desktop.nix.
-{ inputs, lib, pkgs, ... }:
+# ATTENTION, la recopie est destructive : a CHAQUE nixos-rebuild switch, ces
+# entrees de ~/.config sont supprimees puis reecrites depuis le depot amont.
+#
+#   Kvantum  chrome-flags.conf  code-flags.conf  darklyrc  dolphinrc  fish
+#   fontconfig  foot  fuzzel  hypr  kde-material-you-colors  kdeglobals
+#   kitty  matugen  mpv  quickshell  starship.toml  thorium-flags.conf
+#   wlogout  xdg-desktop-portal  zshrc.d
+#
+# Toute retouche manuelle dans ces dossiers est perdue au switch suivant : les
+# personnalisations vont dans ~/.config/hypr/custom/*.lua (non ecrase, sauf
+# env.lua et general.lua que le module regenere) ou dans
+# ~/.config/illogical-impulse/config.json (cree une seule fois, jamais ecrase).
+# ~/.config/nvim n'est PAS dans la liste : LazyVim n'est pas concerne.
+{ inputs, pkgs, ... }:
 
 {
-  imports = [ inputs.illogical-impulse.homeManagerModules.default ];
+  imports = [ inputs.illogical-flake.homeManagerModules.default ];
 
-  illogical-impulse = {
+  programs.illogical-impulse = {
     enable = true;
-
-    hyprland = {
-      # ",preferred,auto,1" = tous les ecrans, definition preferee, pas de mise
-      # a l'echelle. Ecran HiDPI : [ "eDP-1,preferred,auto,1.5" ].
-      # Lister les noms d'ecrans une fois sous Hyprland : hyprctl monitors
-      monitor = [ ",preferred,auto,1" ];
-
-      # NIXOS_OZONE_WL=1 : Chrome / VSCode / Electron en Wayland natif
-      # (sinon flou sur ecran HiDPI et pas de partage d'ecran).
-      ozoneWayland.enable = true;
-
-      # package / xdgPortalPackage laisses par defaut : ce sont pkgs.hyprland et
-      # pkgs.xdg-desktop-portal-hyprland de nixpkgs 26.05, donc exactement les
-      # memes derivations que celles activees par programs.hyprland dans
-      # modules/desktop.nix. Pas de doublon reel.
-    };
 
     dotfiles = {
       kitty.enable = true;
 
-      # Laisse a false : programs.starship (home/theophane.nix) ecrit deja
-      # ~/.config/starship.toml, activer celui-ci = collision home-manager.
-      starship.enable = false;
+      # Obligatoire : le kitty.conf de end-4 contient "shell fish". Sans fish
+      # installe, le terminal ne s'ouvre plus. fish ne devient PAS le shell de
+      # connexion pour autant : zsh reste celui de modules/users.nix, fish ne
+      # tourne qu'a l'interieur de kitty.
+      fish.enable = true;
 
-      # Le shell de connexion est zsh (modules/users.nix), pas fish.
-      fish.enable = false;
+      # Prompt starship fourni par end-4. C'est pour ca que programs.starship
+      # a ete retire de home/theophane.nix : les deux ecrivent
+      # ~/.config/starship.toml, et la recopie ci-dessus gagnerait en silence.
+      starship.enable = true;
     };
   };
 
-  # Le module amont pose systemd.enable = false. Sans la cible systemd
-  # "hyprland-session.target", les services utilisateur declares par
-  # home-manager (hypridle, gammastep, applet NetworkManager) ne demarrent
-  # jamais. Repasser a false si Hyprland se comporte bizarrement au demarrage.
-  wayland.windowManager.hyprland.systemd.enable = lib.mkForce true;
-
-  # Curseur : les dotfiles end-4 attendent Bibata. Sans ce bloc le curseur
-  # bascule sur le theme par defaut, souvent invisible sous XWayland.
+  # Le fichier hypr/hyprland/execs.lua de end-4 lance
+  # "hyprctl setcursor Bibata-Modern-Classic 24" au demarrage, mais aucun des
+  # deux depots ne fournit le theme. Sans ce bloc : curseur par defaut, souvent
+  # invisible sous XWayland.
   home.pointerCursor = {
     package = pkgs.bibata-cursors;
     name = "Bibata-Modern-Classic";
