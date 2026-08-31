@@ -201,6 +201,39 @@ Consequences :
   end-4 qui gagne, et le declarer des deux cotes revenait a voir sa propre
   config disparaitre sans message d'erreur.
 
+### Polices : pourquoi elles sont declarees cote systeme
+
+Symptome sans ce correctif : le shell affiche `settings`, `wifi`, `volume_up`
+en toutes lettres a la place des icones. Material Symbols est une police a
+**ligatures** -- si elle est absente, le nom de l'icone s'affiche tel quel.
+
+Cause : `fontconfig` fait partie des dossiers que le script d'activation
+recopie, donc il fait `rm -rf ~/.config/fontconfig` a **chaque** switch. Or
+c'est precisement la que home-manager ecrit le fragment
+`conf.d/<prio>-hm-<label>.conf` qui apprend a fontconfig ou trouver
+`/etc/profiles/per-user/<nom>/share/fonts` -- un chemin que fontconfig ne
+connait pas par defaut sur NixOS (c'est ecrit noir sur blanc dans le source de
+home-manager, `modules/misc/fontconfig.nix`). Le flake installe donc ses
+polices dans un dossier invisible, puis efface le fichier qui l'aurait rendu
+visible.
+
+Correctif : declarer les polices dans `fonts.packages` (`modules/desktop.nix`).
+Elles atterrissent dans `/run/current-system/sw/share/fonts`, connu de
+fontconfig et hors de `~/.config` : la recopie ne peut plus rien casser. C'est
+d'ailleurs ce que recommande le README du flake amont.
+
+**Reste non resolu :** la police d'interface `gabarito` n'existe pas dans
+nixpkgs, elle vient de NUR (`nurPkgs.repos.skiletro.gabarito`) et donc du
+profil utilisateur -- elle reste invisible. Consequence purement cosmetique :
+repli sur la sans-serif par defaut. Pour la recuperer il faudrait ajouter NUR
+en input de ce flake et la mettre dans `fonts.packages`.
+
+Verifier apres un switch :
+
+```bash
+fc-list | grep -i "material symbols"   # doit renvoyer au moins une ligne
+```
+
 ### Choix a connaitre
 
 - **`dotfiles.fish.enable` doit rester a `true`.** Le `kitty.conf` de end-4

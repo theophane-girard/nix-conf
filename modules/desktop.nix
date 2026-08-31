@@ -43,7 +43,34 @@
       noto-fonts-color-emoji
       inter
       jetbrains-mono
+
+      # Polices attendues par le shell end-4.
+      #
+      # POURQUOI ICI et pas dans home.packages : le script d'activation de
+      # illogical-flake fait "rm -rf ~/.config/fontconfig" a chaque switch (ce
+      # dossier fait partie de sa liste de recopie). Or c'est exactement la que
+      # home-manager ecrit le fragment qui apprend a fontconfig ou trouver
+      # /etc/profiles/per-user/<nom>/share/fonts -- ce chemin n'est pas connu
+      # de fontconfig par defaut sur NixOS. Le flake installe donc ses polices
+      # dans un dossier que fontconfig ne regarde pas, puis efface le fichier
+      # qui l'y aurait fait regarder.
+      #
+      # Symptome : Material Symbols est une police a LIGATURES. Sans elle, le
+      # shell affiche le nom de l'icone en clair ("settings", "wifi") au lieu
+      # du glyphe.
+      #
+      # Declarees au niveau systeme, elles atterrissent dans
+      # /run/current-system/sw/share/fonts, connu de fontconfig et hors de
+      # ~/.config : la recopie ne peut plus rien casser.
+      material-symbols
+      rubik
       nerd-fonts.jetbrains-mono
+      nerd-fonts.ubuntu
+      nerd-fonts.ubuntu-mono
+      nerd-fonts.caskaydia-cove
+      nerd-fonts.fantasque-sans-mono
+      nerd-fonts.mononoki
+      nerd-fonts.space-mono
     ];
     fontconfig.defaultFonts = {
       sansSerif = [ "Inter" ];
