@@ -17,6 +17,7 @@
       "docker" # docker sans sudo
       "scanner" # acces aux scanners SANE
       "lp" # imprimantes + scanners multifonctions
+      "ydotool" # frappe clavier simulee, utilisee par les raccourcis end-4
     ];
 
     # A CHANGER au premier boot : passwd

@@ -1,4 +1,6 @@
-# Environnement graphique : Hyprland, audio, impression, scanner, apps.
+# Environnement graphique COTE SYSTEME : session Hyprland, audio, impression,
+# scanner, apps. La barre / le launcher / les notifications viennent du shell
+# end-4, declare cote utilisateur dans home/illogical-impulse.nix.
 { pkgs, ... }:
 
 {
@@ -56,6 +58,16 @@
   hardware.bluetooth.enable = true;
   services.blueman.enable = true;
 
+  # ydotoold : daemon qui simule des frappes clavier. Plusieurs raccourcis des
+  # dotfiles end-4 passent par lui. Le compte doit etre dans le groupe
+  # "ydotool" (fait dans modules/users.nix).
+  programs.ydotool.enable = true;
+
+  # Geolocalisation : le module end-4 active services.gammastep avec le
+  # fournisseur geoclue2 (temperature d'ecran suivant l'heure locale).
+  # Sans ce service cote systeme, gammastep demarre puis s'arrete en boucle.
+  services.geoclue2.enable = true;
+
   # mDNS : indispensable pour que l'imprimante et le scanner reseau
   # soient decouverts tout seuls.
   services.avahi = {
@@ -99,22 +111,22 @@
   # ----------------------------------------------------------- apps graphiques
   environment.systemPackages = with pkgs; [
     # Hyprland toolkit
-    waybar
-    wofi
-    hyprpaper
-    hyprlock
-    hypridle
+    #
+    # Volontairement absents : waybar, wofi, mako, hyprpaper, hyprlock,
+    # hypridle, kitty. Le shell end-4 fournit ses propres equivalents
+    # (QuickShell pour la barre et les notifications, fuzzel pour le launcher,
+    # swww pour le fond d'ecran) dans le profil UTILISATEUR. Les installer ici
+    # en plus ferait tourner deux barres et deux daemons de notification.
+    # Pour revenir a un Hyprland nu : commenter l'import de
+    # home/illogical-impulse.nix et remettre ces paquets ici.
     grim
     slurp
     swappy
     wl-clipboard
     cliphist
-    mako
     brightnessctl
     playerctl
-    pavucontrol
     nautilus
-    kitty
 
     # Navigateurs
     firefox

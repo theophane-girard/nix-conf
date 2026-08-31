@@ -2,6 +2,12 @@
 { pkgs, lib, username, ... }:
 
 {
+  imports = [
+    # Shell Hyprland end-4 / QuickShell. Commenter cette ligne pour revenir a
+    # un Hyprland nu (waybar & co, voir modules/desktop.nix).
+    ./illogical-impulse.nix
+  ];
+
   home.username = username;
   home.homeDirectory = "/home/${username}";
 

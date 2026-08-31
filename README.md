@@ -11,9 +11,10 @@ hosts/nixbox/
 modules/
   base.nix                nix/flakes, locale FR, reseau, outils CLI
   users.nix               compte utilisateur, groupes, sudo
-  desktop.nix             Hyprland, pipewire, greetd, polices, impression/scan, apps
+  desktop.nix             session Hyprland, pipewire, greetd, polices, impression/scan, apps
   dev.nix                 docker + docker compose
 home/theophane.nix        dotfiles utilisateur (git, zsh, starship, direnv...)
+home/illogical-impulse.nix   shell Hyprland end-4 / QuickShell (barre, launcher, theming)
 ```
 
 ## Avant de partir : pousser le depot
@@ -152,6 +153,82 @@ cp -r hosts/nixbox hosts/<nom>
 ```
 puis declarer l'entree dans `flake.nix` (`nixosConfigurations.<nom> = mkHost {...}`).
 
+
+## Shell Hyprland end-4 (illogical impulse)
+
+La barre, le launcher, le centre de notifications, l'ecran de verrouillage et le
+theming Material You viennent de
+[xBLACKICEx/end-4-dots-hyprland-nixos](https://github.com/xBLACKICEx/end-4-dots-hyprland-nixos),
+portage NixOS de [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland)
+(variante QuickShell, pas AGS).
+
+### Comment c'est branche
+
+| Ou | Quoi |
+| --- | --- |
+| `flake.nix` | input `illogical-impulse`, avec `inputs.nixpkgs.follows = "nixpkgs"` |
+| `flake.nix` | `inputs` passe a home-manager via `extraSpecialArgs` |
+| `home/illogical-impulse.nix` | import du module + options (`enable`, `monitor`, `dotfiles.kitty`) |
+| `home/theophane.nix` | importe le fichier ci-dessus |
+| `modules/desktop.nix` | garde la partie SYSTEME (session Hyprland, portals, audio) ; `ydotoold` + `geoclue2` ajoutes pour le shell |
+| `modules/users.nix` | groupe `ydotool` |
+
+Le module amont est un module **home-manager** : il ecrit dans `~/.config`
+(`hypr/`, `quickshell/`, `matugen/`, `kitty/`) et installe ses paquets dans le
+profil utilisateur. C'est pour ca que la barre, le launcher et les notifications
+ont ete retires de `modules/desktop.nix` : les avoir des deux cotes ferait
+tourner deux barres.
+
+### Regler l'ecran
+
+Dans `home/illogical-impulse.nix`, option `hyprland.monitor` :
+
+```nix
+monitor = [ ",preferred,auto,1" ];        # tout ecran, sans mise a l'echelle
+# monitor = [ "eDP-1,preferred,auto,1.5" ];  # portable HiDPI
+```
+
+Les noms d'ecrans se lisent une fois sous Hyprland : `hyprctl monitors`.
+
+### Points d'attention
+
+- **Deux sources de verite pour starship.** `dotfiles.starship.enable` est
+  laisse a `false` : `programs.starship` (dans `home/theophane.nix`) ecrit deja
+  `~/.config/starship.toml`. Activer les deux = collision home-manager au
+  switch. Pour prendre le prompt end-4 a la place, mettre
+  `dotfiles.starship.enable = true` **et** `programs.starship.enable = false`.
+- **`systemd.enable` force a `true`.** Le module amont le met a `false`, ce qui
+  empeche `hyprland-session.target` de demarrer, donc hypridle / gammastep /
+  applet reseau ne se lancent jamais. Si Hyprland demarre mal, repasser cette
+  ligne a `false`.
+- **Le depot amont est peu maintenu** (dernier commit aout 2025) et epingle
+  nixpkgs `unstable`, alors qu'ici tout suit `nixos-26.05`. Des noms de paquets
+  ont pu changer entre les deux : si l'evaluation echoue sur un paquet
+  (`python313Packages.kde-material-you-colors`, un `nerd-fonts.*`, le paquet NUR
+  `gabarito`...), voir la section suivante.
+- **Fond d'ecran et couleurs.** Les couleurs Material You sont generees au
+  premier lancement par matugen a partir du fond d'ecran. Tant que ce n'est pas
+  fait, `~/.config/hypr/hyprland/colors.conf` peut manquer et Hyprland affiche
+  une banniere d'erreur. Choisir un fond d'ecran depuis le shell la fait
+  disparaitre.
+
+### Quand ca casse a l'evaluation
+
+```bash
+# 1. lire le nom du paquet fautif dans le message d'erreur
+# 2. verifier s'il existe encore en 26.05
+nix search nixpkgs <nom>
+
+# 3. mettre a jour l'input (le probleme est peut-etre deja corrige en amont)
+nix flake update illogical-impulse --flake ~/Documents/nix-conf
+
+# 4. en dernier recours : desactiver le shell le temps de redemarrer
+#    -> commenter ./illogical-impulse.nix dans home/theophane.nix
+#    -> remettre waybar / wofi / mako dans modules/desktop.nix
+```
+
+Un `nixos-rebuild switch` qui echoue ne casse rien : le systeme actuel continue
+de tourner, seul le nouveau profil n'est pas cree.
 
 ## Node / versions par projet
 
