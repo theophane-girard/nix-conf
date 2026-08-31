@@ -77,7 +77,10 @@
     nix-tree
   ];
 
-  environment.variables.EDITOR = lib.mkDefault "vim";
+  # PAS de lib.mkDefault ici : nixpkgs declare deja EDITOR = mkDefault "nano"
+  # (nixos/modules/programs/environment.nix). Deux mkDefault = meme priorite
+  # = conflit non resolu. Une valeur nue (priorite 100) gagne proprement.
+  environment.variables.EDITOR = "vim";
 
   programs.zsh.enable = true;
   programs.git.enable = true;

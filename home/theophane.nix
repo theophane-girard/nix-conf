@@ -17,7 +17,6 @@
     gh
     glab
     lazygit
-    delta
     claude-code
 
     # --- editeur ---
@@ -60,17 +59,23 @@
   };
 
   # ----------------------------------------------------------------------- git
+  # Schema home-manager 26.05 : userName/userEmail/extraConfig sont replies
+  # sous programs.git.settings, et delta a son propre module.
   programs.git = {
     enable = true;
-    userName = "Theophane Girard";
-    userEmail = "girard.theophane@gmail.com";
-    delta.enable = true;
-    extraConfig = {
+    settings = {
+      user.name = "Theophane Girard";
+      user.email = "girard.theophane@gmail.com";
       init.defaultBranch = "main";
       pull.rebase = true;
       push.autoSetupRemote = true;
       rebase.autoStash = true;
     };
+  };
+
+  programs.delta = {
+    enable = true;
+    enableGitIntegration = true;
   };
 
   # --------------------------------------------------------------------- shell
