@@ -254,6 +254,56 @@ Editer `~/.config/hypr/custom/variables.lua` (preserve entre les switch), ou
 `hyprctl keyword monitor ...` pour tester a chaud. Noms des ecrans :
 `hyprctl monitors`.
 
+### Mises a jour : qui bouge, quand, et comment revenir
+
+Les trois composants ne viennent pas du meme endroit.
+
+| Composant | Source | Comment le faire monter |
+| --- | --- | --- |
+| Hyprland | `nixpkgs` (branche stable) | changer `nixos-26.05` en `nixos-26.11` dans `flake.nix` -- tous les 6 mois |
+| QuickShell | input de `illogical-flake` | `nix flake update illogical-flake` |
+| dotfiles end-4 | input de `illogical-flake` | idem -- les deux avancent **ensemble**, c'est voulu |
+
+Hyprland reste sur 0.55.x tant qu'on est sur `nixos-26.05` : une branche stable
+recoit des correctifs, pas de montees de version majeures. `nix flake update`
+n'y changera rien.
+
+QuickShell et les dotfiles sont epingles ensemble par le mainteneur amont, et
+c'est une bonne chose : ces deux-la doivent etre d'accord entre eux, sinon
+l'interface casse sans message d'erreur.
+
+**Point de friction a connaitre :** a cause du `inputs.nixpkgs.follows`,
+QuickShell se compile contre notre nixpkgs 26.05. Si une version future exige
+un Qt plus recent, la compilation echouera -- il faudra alors rester sur
+l'ancienne version, ou attendre le passage a `nixos-26.11`.
+
+### Regle : une seule chose a la fois
+
+Eviter `nfu` (`nix flake update` sans argument), qui fait tout bouger d'un coup :
+quand ca casse, on ne sait pas quoi accuser.
+
+```bash
+nix flake update illogical-flake --flake ~/Documents/nix-conf
+nrt                              # tester sans persister au boot
+# si ca marche : git commit flake.lock, puis nrs
+```
+
+Revenir en arriere sur une mise a jour ratee :
+
+```bash
+git checkout HEAD~1 flake.lock && nrs
+```
+
+`flake.lock` etant suivi par git, on revient a l'etat d'avant aux memes octets
+pres. Et si le systeme ne boote plus, le menu de demarrage garde les 10
+generations precedentes.
+
+**Le seul angle mort :** `~/.config/illogical-impulse/config.json` n'est cree
+qu'une fois et jamais reecrit. Apres une grosse mise a jour des dotfiles, un
+fichier perime peut ne plus correspondre au nouveau shell -- et revenir sur le
+`flake.lock` ne le repare pas. Le supprimer force sa recreation au switch
+suivant.
+
 ### Quand ca casse a l'evaluation
 
 ```bash
