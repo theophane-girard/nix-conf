@@ -134,6 +134,14 @@
 
   # ------------------------------------------------------------------ services
   services.gnome.gnome-keyring.enable = true;
+
+  # seahorse : interface graphique du trousseau. Sert notamment a passer le
+  # trousseau "login" en mot de passe vide (clic droit sur "Connexion" >
+  # Changer le mot de passe > laisser le nouveau vide), ce qui le fait
+  # s'ouvrir seul malgre l'autologin de greetd.
+  # A NE FAIRE QUE SUR DISQUE CHIFFRE : sans LUKS, le trousseau devient
+  # lisible par quiconque lit le disque. Voir tools/activer-luks.sh.
+  programs.seahorse.enable = true;
   programs.dconf.enable = true;
   hardware.bluetooth.enable = true;
   services.blueman.enable = true;
