@@ -2,6 +2,12 @@
 { pkgs, lib, username, ... }:
 
 {
+  imports = [
+    # Shell Hyprland end-4 / QuickShell. Commenter cette ligne pour revenir a
+    # un Hyprland nu (waybar & co, voir modules/desktop.nix).
+    ./illogical-impulse.nix
+  ];
+
   home.username = username;
   home.homeDirectory = "/home/${username}";
 
@@ -34,6 +40,47 @@
     ripgrep
     tldr
     zoxide
+
+    # --- rebuild ---
+    # De vraies commandes plutot que des programs.zsh.shellAliases : kitty
+    # lance fish (le kitty.conf end-4 contient "shell fish"), ou les alias zsh
+    # n'existent pas, et ~/.config/fish est efface puis reecrit a chaque switch
+    # par la recopie end-4 -- y declarer des alias serait perdu en silence.
+    # Un script dans le PATH marche dans tous les shells et survit au switch.
+    #
+    # Le depot vit dans /etc/nixos (pas ~/Documents : ancien chemin, faux).
+    #
+    # nrs / nrt lisent les dotfiles depuis ~/dotfiles au lieu de GitHub
+    # (--override-input), donc les modifs NON COMMITEES sont prises en compte :
+    # editer -> nrs -> voir. C'est le cycle de bidouille.
+    # Corollaire : tant qu'on passe par ces commandes, flake.lock ne bouge pas.
+    (writeShellScriptBin "nrs" ''
+      sudo nixos-rebuild switch --flake /etc/nixos#nixbox \
+        --override-input dotfiles "path:$HOME/dotfiles" "$@" && hyprctl reload
+    '')
+    (writeShellScriptBin "nrt" ''
+      sudo nixos-rebuild test --flake /etc/nixos#nixbox \
+        --override-input dotfiles "path:$HOME/dotfiles" "$@" && hyprctl reload
+    '')
+
+    # Graver l'etat courant des dotfiles : commit + push, puis reverrouille
+    # flake.lock sur le commit pousse. A faire quand un reglage est valide,
+    # sinon la machine dependrait d'un ~/dotfiles jamais sauvegarde.
+    (writeShellScriptBin "ndp" ''
+      cd "$HOME/dotfiles" \
+        && git add -A \
+        && git commit \
+        && git push \
+        && sudo nix flake update dotfiles --flake /etc/nixos
+    '')
+
+    # Rebuild "propre", sans override : utilise ce que dit flake.lock.
+    (writeShellScriptBin "nrc" ''
+      sudo nixos-rebuild switch --flake /etc/nixos#nixbox "$@"
+    '')
+    (writeShellScriptBin "nfu" ''
+      sudo nix flake update --flake /etc/nixos "$@"
+    '')
   ];
 
   home.sessionVariables.EDITOR = "nvim";
@@ -56,7 +103,41 @@
     enableZshIntegration = true;
     # "y" au lieu de "yazi" : le wrapper fait un cd dans le dossier quitte.
     shellWrapperName = "y";
+
+    settings = {
+      # Chemin absolu vers le store : l'opener ne depend pas du PATH.
+      opener.chrome = [{
+        run = ''${lib.getExe pkgs.google-chrome} "$@"'';
+        orphan = true;
+        desc = "Open in Chrome";
+        for = "linux";
+      }];
+
+      # prepend_ : passe avant les regles par defaut de yazi.
+      open.prepend_rules = [
+        { mime = "application/pdf"; use = [ "chrome" "reveal" ]; }
+        { mime = "text/html"; use = [ "chrome" "edit" "reveal" ]; }
+      ];
+    };
+
+    keymap.mgr.prepend_keymap = [{
+      on = "!";
+      run = ''shell "$SHELL" --block'';
+      desc = "Open shell at current location";
+    }];
   };
+
+  # ----------------------------------------------------------------- apparence
+  # Un seul signal freedesktop : xdg-desktop-portal-gtk relit cette cle dconf et
+  # l'expose via org.freedesktop.appearance color-scheme. Chrome, Firefox,
+  # Electron et les apps GTK4/libadwaita le suivent sans config propre.
+  # Verifie sur cette machine : la cle fait passer le portail de 0 a 1.
+  dconf.settings."org/gnome/desktop/interface".color-scheme = "prefer-dark";
+
+  # GTK3 ne lit pas le portail, il lui faut la cle dans settings.ini.
+  # extraConfig est vide par ailleurs : pas de collision avec le module ii.
+  gtk.gtk3.extraConfig.gtk-application-prefer-dark-theme = 1;
+  gtk.gtk4.extraConfig.gtk-application-prefer-dark-theme = 1;
 
   # ----------------------------------------------------------------------- git
   # Schema home-manager 26.05 : userName/userEmail/extraConfig sont replies
@@ -70,6 +151,12 @@
       pull.rebase = true;
       push.autoSetupRemote = true;
       rebase.autoStash = true;
+
+      # gh sert de credential helper : rien a gerer a la main, pas de PAT.
+      # `gh auth login` ne peut pas ecrire cette config (lecture seule dans le
+      # store), donc on la declare ici. Le token reste dans ~/.config/gh.
+      credential."https://github.com".helper = "!gh auth git-credential";
+      credential."https://gist.github.com".helper = "!gh auth git-credential";
     };
   };
 
@@ -89,14 +176,15 @@
       ll = "eza -l --git --group-directories-first";
       cat = "bat";
       vim = "nvim";
-      # rebuild depuis ce depot
-      nrs = "sudo nixos-rebuild switch --flake ~/Documents/nix-conf";
-      nrt = "sudo nixos-rebuild test --flake ~/Documents/nix-conf";
-      nfu = "nix flake update --flake ~/Documents/nix-conf";
+      # nrs / nrt / nrc / nfu / ndp ne sont plus des alias : ce sont des
+      # scripts declares dans home.packages (section "rebuild"), pour
+      # qu'ils marchent aussi dans fish, sous kitty.
     };
   };
 
-  programs.starship.enable = true;
+  # Pas de programs.starship ici : le prompt vient des dotfiles end-4
+  # (home/illogical-impulse.nix), qui reecrivent ~/.config/starship.toml a
+  # chaque switch. Declarer les deux = ta config ecrasee sans message.
   programs.fzf.enable = true;
   programs.zoxide.enable = true;
   programs.bat.enable = true;
