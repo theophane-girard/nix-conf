@@ -1,7 +1,7 @@
 # Environnement graphique COTE SYSTEME : session Hyprland, audio, impression,
 # scanner, apps. La barre / le launcher / les notifications viennent du shell
 # end-4, declare cote utilisateur dans home/illogical-impulse.nix.
-{ pkgs, ... }:
+{ config, pkgs, username, ... }:
 
 {
   # ---------------------------------------------------------------- compositeur
@@ -19,11 +19,64 @@
   # ------------------------------------------------------------------- greeter
   services.greetd = {
     enable = true;
+
+    # Autologin AU BOOT uniquement. La session Hyprland demarre sans rien
+    # demander, puis QuickShell verrouille l'ecran de lui-meme : les dotfiles
+    # ont lock.launchOnStartup = true (Config.qml), qui declenche le verrou des
+    # qu'une nouvelle instance Hyprland apparait. Et lock.useHyprlock = false,
+    # donc c'est bien l'ecran illogical-impulse -- pas hyprlock -- qui s'affiche
+    # et qui reclame le mot de passe.
+    #
+    # CE QUE CA COUTE : entre le demarrage du compositeur et l'apparition de
+    # hyprlock, la session est techniquement ouverte. Si hyprlock plante ou est
+    # tue depuis un TTY, le bureau est accessible sans mot de passe. Le greeter,
+    # lui, ne laissait pas cette fenetre.
+    # A relativiser ici : la racine n'est pas chiffree (LUKS commente dans
+    # hosts/nixbox/default.nix), donc un acces physique lit deja le disque.
+    # Si tu actives LUKS un jour, reconsidere ce bloc.
+    # start-hyprland, PAS Hyprland : depuis la 0.55 le binaire nu affiche
+    # "Hyprland was started without start-hyprland" et tourne en mode debug.
+    # Le wrapper est ce que lance le hyprland.desktop upstream ; il prepare la
+    # session (log, garde-fous, relance propre) avant d'exec le compositeur.
+    settings.initial_session = {
+      command = "${config.programs.hyprland.package}/bin/start-hyprland";
+      user = username;
+    };
+
+    # Apres un logout volontaire (pas un reboot), on retombe ici.
     settings.default_session = {
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --cmd Hyprland";
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --cmd start-hyprland";
       user = "greeter";
     };
   };
+
+  # ------------------------------------------------- verrouillage d'ecran (PAM)
+  # L'ecran de verrouillage II s'authentifie via /etc/pam.d/login, qui existe :
+  # rien a faire pour lui.
+  #
+  # hyprlock reste le PLAN B : hypridle.conf le lance si QuickShell est mort
+  # ("pidof qs quickshell hyprlock || hyprlock"). Or hyprlock vient du profil
+  # utilisateur, donc rien ne creait /etc/pam.d/hyprlock -- PAM retombait sur
+  # /etc/pam.d/other, un pam_deny integral. Le plan B verrouillait l'ecran sans
+  # qu'aucun mot de passe ne puisse l'ouvrir. Cette option ecrit la pile PAM.
+  programs.hyprlock.enable = true;
+
+  # ------------------------------------------------------ empreinte digitale
+  # Lecteur Goodix 27c6:609c du Framework 13, pilote goodixmoc de libfprint.
+  # Fournit le demon fprintd + fprintd-enroll / fprintd-list.
+  services.fprintd.enable = true;
+
+  # services.fprintd.enable bascule fprintAuth a true sur TOUS les services PAM.
+  # Ce n'est pas ce qu'on veut : pam_fprintd s'y insere en "sufficient" AVANT
+  # pam_unix, donc chaque saisie de mot de passe commencerait par attendre un
+  # doigt. L'ecran de verrouillage II lance deja l'empreinte de son cote, en
+  # parallele et avec sa propre pile PAM -- il n'a pas besoin de celle-ci.
+  #   login : utilise par l'ecran de verrouillage II pour le mot de passe
+  #   sudo  : sinon chaque sudo reclame le doigt avant le mot de passe
+  # Mettre l'un des deux a true si tu veux l'empreinte a cet endroit aussi.
+  security.pam.services.login.fprintAuth = false;
+  security.pam.services.sudo.fprintAuth = false;
+  security.pam.services.hyprlock.enableGnomeKeyring = true;
 
   # --------------------------------------------------------------------- audio
   services.pipewire = {
@@ -137,6 +190,12 @@
 
   # ----------------------------------------------------------- apps graphiques
   environment.systemPackages = with pkgs; [
+    # services.fprintd.enable ne met PAS fprintd dans le PATH systeme, or il
+    # faut que /run/current-system/sw/lib/security/pam_fprintd.so existe :
+    # c'est le chemin que reference pam/fprintd.conf dans les dotfiles, le seul
+    # stable a travers les generations. Fournit aussi fprintd-enroll / -list.
+    fprintd
+
     # Hyprland toolkit
     #
     # Presque vide, et c'est voulu : le shell end-4 installe tout son outillage
@@ -165,6 +224,17 @@
 
     # Multimedia
     spotify
+
+    # VPN
+    # L'appli fournit le GUI et la commande protonvpn. Elle pilote les
+    # tunnels via NetworkManager (active dans modules/base.nix) : sans lui,
+    # la connexion echoue au moment de monter l'interface.
+    proton-vpn
+
+    # BitTorrent
+    # Le GUI Qt. Pour une seedbox sans session graphique, ce serait
+    # qbittorrent-nox + services.qbittorrent : ce n'est pas l'usage ici.
+    qbittorrent
 
     # Scan (GUI simple : detecte les backends SANE ci-dessus)
     simple-scan

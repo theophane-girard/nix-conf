@@ -9,6 +9,18 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # NOS dotfiles : fork de end-4/dots-hyprland. C'est ICI qu'on edite la
+    # config du shell Hyprland (barre, hypr/, quickshell/, kitty...), plus dans
+    # ~/.config qui est ecrase a chaque switch.
+    #   ?submodules=1 est OBLIGATOIRE : le repo a un submodule
+    #   (dots/.config/quickshell/ii/modules/common/widgets/shapes) sans lequel
+    #   les formes Material de QuickShell manquent.
+    #   nix flake update dotfiles   -> recupere tes derniers commits pousses
+    dotfiles = {
+      url = "git+https://github.com/theophane-girard/dots-hyprland?submodules=1";
+      flake = false;
+    };
+
     # Shell Hyprland "illogical impulse" (end-4 / QuickShell), portage NixOS.
     # N'expose qu'un module home-manager : homeManagerModules.default.
     illogical-flake = {
@@ -17,10 +29,14 @@
       # deux nixpkgs cohabitent et les libs Qt de quickshell ne correspondent
       # plus a celles des paquets kdePackages installes a cote.
       inputs.nixpkgs.follows = "nixpkgs";
-      # Son input "dotfiles" pointe sur end-4/dots-hyprland en amont direct, a
-      # une revision testee par le mainteneur. On garde SON epinglage : c'est
-      # la combinaison quickshell + dotfiles qu'il a validee.
-      #   nix flake update illogical-flake   -> avance les deux ensemble
+      # Son input "dotfiles" pointait sur end-4/dots-hyprland en amont direct.
+      # On le detourne vers notre fork ci-dessus : le module illogical-flake ne
+      # s'en sert qu'a deux endroits (dots/.config et dots/.local/share, qu'il
+      # recopie dans ~), donc la substitution est sans risque.
+      # CONTREPARTIE : "nix flake update illogical-flake" n'avance plus les
+      # dotfiles avec quickshell. Quand quickshell bouge, rebaser le fork sur
+      # end-4/main soi-meme.
+      inputs.dotfiles.follows = "dotfiles";
     };
   };
 
